@@ -1,0 +1,12 @@
+{
+  "method": "unsubscribe",
+  "result": {
+    "channel": "book",
+    "depth": 10,
+    "snapshot": true,
+    "symbol": "BTC/USD"
+  },
+  "success": true,
+  "time_in": "2023-10-06T17:35:55.219022Z",
+  "time_out": "2023-10-06T17:35:55.219067Z"
+}

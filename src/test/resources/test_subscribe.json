@@ -1,0 +1,9 @@
+{
+  "method": "subscribe",
+  "params": {
+    "channel": "book",
+    "symbol": [
+      "BTC/USD"
+    ]
+  }
+}
