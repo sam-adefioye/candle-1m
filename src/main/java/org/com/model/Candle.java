@@ -5,9 +5,11 @@ import lombok.*;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+@Builder
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class Candle {
     private String symbol;
     private Instant timestampAsInstant;
@@ -17,6 +19,7 @@ public class Candle {
     private double low;
     private double close;
     private int ticks;
+    @Builder.Default
     private StringBuilder stringBuilder = new StringBuilder();
 
     public long timestampToMinutesElapsed() {
