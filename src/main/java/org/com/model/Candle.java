@@ -5,9 +5,11 @@ import lombok.*;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+@Builder
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class Candle {
     private String symbol;
     private Instant timestampAsInstant;
