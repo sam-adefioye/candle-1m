@@ -12,10 +12,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Main application that connects to Kraken WebSocket API to receive order book data
@@ -118,12 +115,14 @@ public class OrderBookCandleGenerator {
             // Subscribe to order book updates for BTC/USD
             String subscriptionMessage = """
                     {
-                      "event": "subscribe",
-                      "pair": ["BTC/USD"],
-                      "subscription": {
-                        "name": "book",
-                        "depth": 25
-                      }
+                      "method": "subscribe",
+                      "params": {
+                          "channel": "book",
+                          "depth": 10,
+                          "symbol": [
+                            "BTC/USD"
+                          ]
+                        }
                     }""";
 
             webSocketClient.send(subscriptionMessage);
@@ -137,35 +136,31 @@ public class OrderBookCandleGenerator {
     private void processMessage(String message) throws Exception {
         JsonNode root = objectMapper.readTree(message);
 
+        String channel;
         // Handle subscription status messages
-        if (root.has("event")) {
-            String event = root.get("event").asText();
-            logger.debug("Received event: {}", event);
-            return;
-        }
+        if (root.has("channel") && (channel = root.get("channel").asText()).equals("book")) {
+            logger.debug("Received event: {}", channel);
 
-        // Handle order book data
-        if (root.isArray() && root.size() >= 4) {
-            JsonNode data = root.get(1);
-            String channelName = root.get(2).asText();
-            String pair = root.get(3).asText();
-
-            if ("book-25".equals(channelName) && "BTC/USD".equals(pair)) {
-                processOrderBookUpdate(data);
+            JsonNode dataNode = root.get("data");
+            String type = root.get("type").asText();
+            String symbol = dataNode.get(0).get("symbol").asText();
+            // Handle order book data
+            if (dataNode.isArray() && SYMBOL.equals(symbol)) {
+                processOrderBookUpdate(dataNode.get(0), !type.equals("snapshot"));
             }
         }
     }
 
-    private void processOrderBookUpdate(JsonNode data) {
+    private void processOrderBookUpdate(JsonNode data, boolean isUpdate) {
         try {
             // Handle snapshot (full order book)
-            if (data.has("bs") && data.has("as")) {
+            if (data.has("bids") && data.has("asks") && !isUpdate) {
                 logger.debug("Processing order book snapshot");
                 orderBook.updateSnapshot(data);
             }
 
             // Handle delta updates
-            if (data.has("b") || data.has("a")) {
+            if ((data.has("bids") || data.has("asks")) && isUpdate) {
                 logger.debug("Processing order book delta");
                 orderBook.updateDelta(data);
             }
@@ -195,7 +190,7 @@ public class OrderBookCandleGenerator {
         // Schedule candle generation every minute
         scheduler.scheduleAtFixedRate(() -> {
             try {
-                Candle candle = candleGenerator.generateCandle();
+                Candle candle = candleGenerator.generateCandle(SYMBOL);
                 if (candle != null) {
                     logger.info("Generated candle: {}", candle);
                 }
@@ -263,15 +258,15 @@ class OrderBook {
         synchronized (updateLock) {
             try {
                 // Clear existing data
-                bids.clear();
-                asks.clear();
+//                bids.clear();
+//                asks.clear();
 
                 // Process bids
-                if (data.has("bs")) {
-                    JsonNode bidsNode = data.get("bs");
+                if (data.has("bids")) {
+                    JsonNode bidsNode = data.get("bids");
                     for (JsonNode bid : bidsNode) {
-                        double price = bid.get(0).asDouble();
-                        double quantity = bid.get(1).asDouble();
+                        double price = bid.get("price").asDouble();
+                        double quantity = bid.get("qty").asDouble();
                         if (quantity > 0) {
                             bids.put(price, quantity);
                         }
@@ -279,11 +274,11 @@ class OrderBook {
                 }
 
                 // Process asks
-                if (data.has("as")) {
-                    JsonNode asksNode = data.get("as");
+                if (data.has("asks")) {
+                    JsonNode asksNode = data.get("asks");
                     for (JsonNode ask : asksNode) {
-                        double price = ask.get(0).asDouble();
-                        double quantity = ask.get(1).asDouble();
+                        double price = ask.get("price").asDouble();
+                        double quantity = ask.get("qty").asDouble();
                         if (quantity > 0) {
                             asks.put(price, quantity);
                         }
@@ -302,11 +297,11 @@ class OrderBook {
         synchronized (updateLock) {
             try {
                 // Process bid updates
-                if (data.has("b")) {
-                    JsonNode bidsNode = data.get("b");
+                if (data.has("bids")) {
+                    JsonNode bidsNode = data.get("bids");
                     for (JsonNode bid : bidsNode) {
-                        double price = bid.get(0).asDouble();
-                        double quantity = bid.get(1).asDouble();
+                        double price = bid.get("price").asDouble();
+                        double quantity = bid.get("qty").asDouble();
 
                         if (quantity == 0) {
                             bids.remove(price);
@@ -317,11 +312,11 @@ class OrderBook {
                 }
 
                 // Process ask updates
-                if (data.has("a")) {
-                    JsonNode asksNode = data.get("a");
+                if (data.has("asks")) {
+                    JsonNode asksNode = data.get("asks");
                     for (JsonNode ask : asksNode) {
-                        double price = ask.get(0).asDouble();
-                        double quantity = ask.get(1).asDouble();
+                        double price = ask.get("price").asDouble();
+                        double quantity = ask.get("qty").asDouble();
 
                         if (quantity == 0) {
                             asks.remove(price);
@@ -391,7 +386,7 @@ class CandleGenerator {
         }
     }
 
-    public Candle generateCandle() {
+    public Candle generateCandle(final String symbol) {
         synchronized (candleLock) {
             if (currentMinuteTicks.isEmpty()) {
                 logger.debug("No ticks recorded for current minute");
@@ -409,7 +404,15 @@ class CandleGenerator {
             // Clear ticks for next minute
             currentMinuteTicks.clear();
 
-            return Candle.builder().timestamp(timestamp).open(open).high(high).low(low).close(close).ticks(ticks).build();
+            return Candle.builder()
+                    .symbol(symbol)
+                    .timestamp(timestamp)
+                    .open(open)
+                    .high(high)
+                    .low(low)
+                    .close(close)
+                    .ticks(ticks)
+                    .build();
         }
     }
 }

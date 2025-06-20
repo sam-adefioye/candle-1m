@@ -19,6 +19,7 @@ public class Candle {
     private double low;
     private double close;
     private int ticks;
+    @Builder.Default
     private StringBuilder stringBuilder = new StringBuilder();
 
     public long timestampToMinutesElapsed() {
