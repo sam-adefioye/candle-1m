@@ -5,6 +5,8 @@ import org.com.client.WebSocketClientImpl;
 import org.com.kafka.CandleKafkaConsumer;
 import org.com.kafka.CandleKafkaProducer;
 import org.com.model.Candle;
+import org.com.model.OrderBook;
+
 import java.net.URI;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,8 +38,6 @@ public class OrderBookCandleGenerator {
     public static void main(String[] args) {
         OrderBookCandleGenerator app = new OrderBookCandleGenerator();
         app.initializeKafka();
-
-        // Add shutdown hook for graceful cleanup
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("Shutting down application...");
             app.shutdown();
@@ -50,8 +50,6 @@ public class OrderBookCandleGenerator {
         try {
             connectToKraken();
             startCandleGeneration();
-
-            // Keep the application running
             Thread.currentThread().join();
 
         } catch (Exception e) {
@@ -62,7 +60,6 @@ public class OrderBookCandleGenerator {
     private void connectToKraken() throws Exception {
         webSocketClient.connect();
 
-        // Wait for connection
         while (!isConnected.get()) {
             Thread.sleep(1000);
         }
@@ -73,12 +70,9 @@ public class OrderBookCandleGenerator {
     }
 
     private void startCandleGeneration() {
-        // Calculate delay to next minute boundary
         long now = System.currentTimeMillis();
         long nextMinute = ((now / 60000) + 1) * 60000;
         long initialDelay = nextMinute - now;
-
-        // Schedule candle generation every minute
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 Candle candle = candleGenerator.generateCandle(SYMBOL);
@@ -98,10 +92,8 @@ public class OrderBookCandleGenerator {
             return;
         }
 
-        // Log to console (original requirement)
         log.info("Generated candle: {}", candle);
 
-        // Publish to Kafka if enabled (bonus requirement)
         if (kafkaEnabled) {
             try {
                 kafkaProducer.publishCandle(candle);
@@ -137,7 +129,6 @@ public class OrderBookCandleGenerator {
 
             log.info("Kafka integration enabled");
 
-            // Start consuming in a separate thread
             kafkaConsumer.startConsuming();
 
         } catch (Exception e) {

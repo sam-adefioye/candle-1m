@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.com.service.CandleGenerator;
-import org.com.service.OrderBook;
+import org.com.model.OrderBook;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import java.net.URI;
@@ -58,7 +58,6 @@ public class WebSocketClientImpl extends WebSocketClient {
 
     private void subscribeToOrderBook() {
         try {
-            // Subscribe to order book updates for BTC/USD
             String subscriptionMessage = """
                     {
                       "method": "subscribe",

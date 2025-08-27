@@ -31,7 +31,6 @@ public class CandleGenerator {
                 return null;
             }
 
-            // Calculate candle data
             long timestamp = Instant.now().truncatedTo(ChronoUnit.MINUTES).minusSeconds(60).getEpochSecond();
             double open = currentMinuteTicks.get(0);
             double close = currentMinuteTicks.get(currentMinuteTicks.size() - 1);
@@ -39,7 +38,6 @@ public class CandleGenerator {
             double low = currentMinuteTicks.stream().mapToDouble(Double::doubleValue).min().orElse(0.0);
             int ticks = currentMinuteTicks.size();
 
-            // Clear ticks for next minute
             currentMinuteTicks.clear();
 
             return Candle.builder()

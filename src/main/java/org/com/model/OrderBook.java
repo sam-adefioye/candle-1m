@@ -1,4 +1,4 @@
-package org.com.service;
+package org.com.model;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
@@ -12,13 +12,11 @@ import java.util.concurrent.ConcurrentSkipListSet;
 @Slf4j
 public class OrderBook {
 
-    // Using TreeMap for automatic sorting by price
     private final ConcurrentSkipListSet<Double> bids = new ConcurrentSkipListSet<>(Collections.reverseOrder()); // price -> quantity
     private final ConcurrentSkipListSet<Double> asks = new ConcurrentSkipListSet<>(); // price -> quantity
 
     public void processSnapshot(JsonNode data) {
         try {
-            // Process bids
             if (data.has("bids")) {
                 JsonNode bidsNode = data.get("bids");
                 for (JsonNode bid : bidsNode) {
@@ -30,7 +28,6 @@ public class OrderBook {
                 }
             }
 
-            // Process asks
             if (data.has("asks")) {
                 JsonNode asksNode = data.get("asks");
                 for (JsonNode ask : asksNode) {
@@ -51,7 +48,6 @@ public class OrderBook {
 
     public void processDelta(JsonNode data) {
         try {
-            // Process bid updates
             if (data.has("bids")) {
                 JsonNode bidsNode = data.get("bids");
                 for (JsonNode bid : bidsNode) {
@@ -66,7 +62,6 @@ public class OrderBook {
                 }
             }
 
-            // Process ask updates
             if (data.has("asks")) {
                 JsonNode asksNode = data.get("asks");
                 for (JsonNode ask : asksNode) {

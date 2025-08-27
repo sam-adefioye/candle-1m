@@ -89,13 +89,10 @@ public class CandleKafkaConsumer {
 
     private void processRecord(ConsumerRecord<String, String> record) {
         try {
-            // Deserialize the candle from JSON
             Candle candle = objectMapper.readValue(record.value(), Candle.class);
-
-            // Log the consumed candle
             log.info("Consumed candle from Kafka: {}", candle);
 
-            // Here you could add additional processing logic, such as:
+            // Add additional processing logic, such as:
             // - Storing to database
             // - Forwarding to other systems
             // - Aggregating data
