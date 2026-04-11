@@ -3,7 +3,8 @@ package org.com.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.com.service.CandleGenerator;
+import org.com.kafka.MidPriceKafkaProducer;
+import org.com.model.MidPrice;
 import org.com.model.OrderBook;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
@@ -17,13 +18,13 @@ public class WebSocketClientImpl extends WebSocketClient {
     private static final String ASKS = "asks";
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    private final CandleGenerator candleGenerator;
+    private final MidPriceKafkaProducer midPriceKafkaProducer;
     private final OrderBook orderBook;
     private final AtomicBoolean isConnected;
 
-    public WebSocketClientImpl(URI serverUri, CandleGenerator candleGenerator, OrderBook orderBook, AtomicBoolean isConnected) {
+    public WebSocketClientImpl(URI serverUri, MidPriceKafkaProducer midPriceKafkaProducer, OrderBook orderBook, AtomicBoolean isConnected) {
         super(serverUri);
-        this.candleGenerator = candleGenerator;
+        this.midPriceKafkaProducer = midPriceKafkaProducer;
         this.orderBook = orderBook;
         this.isConnected = isConnected;
     }
@@ -118,7 +119,12 @@ public class WebSocketClientImpl extends WebSocketClient {
     private void calculateMidPrice() {
         double midPrice = orderBook.getMidPrice();
         if (midPrice > 0) {
-            candleGenerator.recordTick(midPrice);
+            MidPrice midPriceEvent = MidPrice.builder()
+                    .symbol(SYMBOL)
+                    .midPrice(midPrice)
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+            midPriceKafkaProducer.publishMidPrice(midPriceEvent);
         }
     }
 }

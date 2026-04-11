@@ -3,8 +3,7 @@ package org.com.service;
 import lombok.extern.slf4j.Slf4j;
 import org.com.client.WebSocketClientImpl;
 import org.com.kafka.CandleKafkaConsumer;
-import org.com.kafka.CandleKafkaProducer;
-import org.com.model.Candle;
+import org.com.kafka.MidPriceKafkaProducer;
 import org.com.model.OrderBook;
 
 import java.net.URI;
@@ -23,17 +22,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class OrderBookCandleGenerator {
     private static final String KRAKEN_WS_URL = "wss://ws.kraken.com/v2";
-    private static final String SYMBOL = "BTC/USD";
 
     private final OrderBook orderBook = new OrderBook();
-    private final CandleGenerator candleGenerator = new CandleGenerator();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
-    private final CandleKafkaProducer kafkaProducer = new CandleKafkaProducer();
+    private final MidPriceKafkaProducer midPriceKafkaProducer = new MidPriceKafkaProducer();
     private final CandleKafkaConsumer kafkaConsumer = new CandleKafkaConsumer();
+    private final CandleStream streamsGenerator = new CandleStream();
     private final AtomicBoolean isConnected = new AtomicBoolean(false);
-    private final WebSocketClientImpl webSocketClient = new WebSocketClientImpl(URI.create(KRAKEN_WS_URL), candleGenerator, orderBook, isConnected);
-
-    private boolean kafkaEnabled = false;
+    private final WebSocketClientImpl webSocketClient = new WebSocketClientImpl(URI.create(KRAKEN_WS_URL), midPriceKafkaProducer, orderBook, isConnected);
+    private final AtomicBoolean kafkaEnabled = new AtomicBoolean(false);
 
     public static void main(String[] args) {
         OrderBookCandleGenerator app = new OrderBookCandleGenerator();
@@ -49,7 +46,6 @@ public class OrderBookCandleGenerator {
     public void start() {
         try {
             connectToKraken();
-            startCandleGeneration();
             Thread.currentThread().join();
 
         } catch (Exception e) {
@@ -69,46 +65,13 @@ public class OrderBookCandleGenerator {
         }
     }
 
-    private void startCandleGeneration() {
-        long now = System.currentTimeMillis();
-        long nextMinute = ((now / 60000) + 1) * 60000;
-        long initialDelay = nextMinute - now;
-        scheduler.scheduleAtFixedRate(() -> {
-            try {
-                Candle candle = candleGenerator.generateCandle(SYMBOL);
-                if (candle != null) {
-                    publishCandle(candle);
-                }
-            } catch (Exception e) {
-                log.error("Error generating candle", e);
-            }
-        }, initialDelay, 60000, TimeUnit.MILLISECONDS);
-
-        log.info("Candle generation scheduled to start in {} ms", initialDelay);
-    }
-
-    private void publishCandle(Candle candle) {
-        if (candle == null) {
-            return;
-        }
-
-        log.info("Generated candle: {}", candle);
-
-        if (kafkaEnabled) {
-            try {
-                kafkaProducer.publishCandle(candle);
-            } catch (Exception e) {
-                log.error("Failed to publish candle to Kafka", e);
-            }
-        }
-    }
-
     public void shutdown() {
         if (webSocketClient.isOpen()) {
             webSocketClient.close();
         }
-        kafkaProducer.close();
+        midPriceKafkaProducer.close();
         kafkaConsumer.close();
+        streamsGenerator.stop();
 
         if (!scheduler.isShutdown()) {
             scheduler.shutdown();
@@ -125,15 +88,15 @@ public class OrderBookCandleGenerator {
 
     private void initializeKafka() {
         try {
-            kafkaEnabled = true;
-
+            kafkaEnabled.set(true);
             log.info("Kafka integration enabled");
 
             kafkaConsumer.startConsuming();
+            streamsGenerator.start();
 
         } catch (Exception e) {
             log.warn("Kafka not available, running without Kafka integration: {}", e.getMessage());
-            kafkaEnabled = false;
+            kafkaEnabled.set(false);
         }
     }
 }

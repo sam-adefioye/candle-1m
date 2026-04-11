@@ -1,9 +1,9 @@
 package org.com.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 @Builder
 @Getter
@@ -20,28 +20,8 @@ public class Candle {
     private double close;
     private int ticks;
     @Builder.Default
+    @JsonIgnore
     private StringBuilder stringBuilder = new StringBuilder();
-
-    public long timestampToMinutesElapsed() {
-        return timestampAsInstant.until(Instant.now(), ChronoUnit.MINUTES);
-    }
-
-    public void setTimestampAndInstant(long timestampAsMilli) {
-        timestamp = timestampAsMilli;
-        timestampAsInstant = Instant.ofEpochMilli(timestamp);
-    }
-
-    public void clear() {
-        symbol = null;
-        timestampAsInstant = null;
-        timestamp = 0;
-        open = 0;
-        high = 0;
-        low = 0;
-        close = 0;
-        ticks = 0;
-        stringBuilder.setLength(0);
-    }
 
     public String toString() {
         stringBuilder.setLength(0);

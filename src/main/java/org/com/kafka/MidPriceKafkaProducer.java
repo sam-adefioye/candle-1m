@@ -3,23 +3,23 @@ package org.com.kafka;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.com.model.Candle;
+import org.com.model.MidPrice;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.common.serialization.StringSerializer;
 import java.time.Duration;
 import java.util.Properties;
 
 /**
- * Kafka producer for publishing candle data
+ * Kafka producer for publishing mid-price data
  */
 @Slf4j
-public class CandleKafkaProducer {
-    private static final String TOPIC_NAME = "candle-data";
+public class MidPriceKafkaProducer {
+    private static final String TOPIC_NAME = "order-book-mid-prices";
 
     private final Producer<String, String> producer;
     private final ObjectMapper objectMapper;
 
-    public CandleKafkaProducer() {
+    public MidPriceKafkaProducer() {
         Properties properties = getDefaultProducerProperties();
         this.producer = new KafkaProducer<>(properties);
         this.objectMapper = new ObjectMapper();
@@ -42,28 +42,28 @@ public class CandleKafkaProducer {
     }
 
     /**
-     * Publishes a candle to Kafka
-     * @param candle The candle to publish
+     * Publishes a mid-price to Kafka
+     * @param midPrice The mid-price to publish
      */
-    public void publishCandle(Candle candle) {
+    public void publishMidPrice(MidPrice midPrice) {
         try {
-            String key = String.valueOf(candle.getTimestamp());
-            String value = objectMapper.writeValueAsString(candle);
+            String key = midPrice.getSymbol();
+            String value = objectMapper.writeValueAsString(midPrice);
 
             ProducerRecord<String, String> record = new ProducerRecord<>(TOPIC_NAME, key, value);
 
             producer.send(record, (metadata, exception) -> {
                 if (exception != null) {
-                    log.error("Failed to send candle to Kafka", exception);
+                    log.error("Failed to send mid-price to Kafka", exception);
                 } else {
-                    log.debug("Candle sent to Kafka - Topic: {}, Partition: {}, Offset: {}",
+                    log.debug("Mid-price sent to Kafka - Topic: {}, Partition: {}, Offset: {}",
                             metadata.topic(), metadata.partition(), metadata.offset());
                 }
             });
 
         } catch (JsonProcessingException e) {
-            log.error("Failed to serialize candle to JSON", e);
-            throw new RuntimeException("Failed to serialize candle", e);
+            log.error("Failed to serialize mid-price to JSON", e);
+            throw new RuntimeException("Failed to serialize mid-price", e);
         }
     }
 

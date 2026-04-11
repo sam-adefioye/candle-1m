@@ -1,4 +1,4 @@
-A terminal app printing 1-minute ticker candles for a set asset (also using Kafka).
+A terminal app printing 1-minute ticker candles for a set instrument (also using Kafka).
 
 # Usage:
 Run application either via IDE or `java -jar target/candle-1m-0.0.1.jar`.
